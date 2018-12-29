@@ -1,125 +1,151 @@
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/epoll.h>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+#include <memory>
 #include <netinet/in.h>
-#include <arpa/inet.h>
-
-#include <fcntl.h>
+#include <netinet/tcp.h>
 #include <signal.h>
-#include <string.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <sys/epoll.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <thread>
 #include <unistd.h>
+#include <vector>
+#include <sys/uio.h>
 
-#define MAX_EVENTS 10
-#define MAXBUF  1024
-#define handle_error(msg) \
-           do { perror(msg); exit(EXIT_FAILURE); } while (0)
+#include "Request.h"
 
 char reply[] =
-"HTTP/1.1 200 OK\n"
-"Date: Thu, 19 Feb 2009 12:27:04 GMT\n"
-"Server: Apache/2.2.3\n"
-"Last-Modified: Wed, 18 Jun 2003 16:05:58 GMT\n"
-"ETag: \"56d-9989200-1132c580\"\n"
-"Content-Type: text/html\n"
-"Content-Length: 15\n"
-"Accept-Ranges: bytes\n"
-"Connection: close\n"
-"\n"
-"sdfkjsdnbfkjbsf";
+    "HTTP/1.1 200 OK\n"
+    "Date: Thu, 19 Feb 2009 12:27:04 GMT\n"
+    "Server: Apache/2.2.3\n"
+    "Last-Modified: Wed, 18 Jun 2003 16:05:58 GMT\n"
+    "ETag: \"56d-9989200-1132c580\"\n"
+    "Content-Type: text/html\n"
+    "Content-Length: 15\n"
+    "Accept-Ranges: bytes\n"
+    "Connection: close\n"
+    "\n"
+    "sdfkjsdnbfkjbsf";
 
-int setnonblocking(int fd)
-{
-    int flags;
-    if (-1 == (flags = fcntl(fd, F_GETFL, 0)))
-        flags = 0;
-    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+const int new_buf_size = 1024 * 512;
+const int turn_on = 1;
+const unsigned int thread_nums = 3;
+const size_t kReadBufferSize = 2048;
+const int MAX_IOVEC_PART = 1000;
+const int max_events = 1000;
+
+static inline int start_listen() {
+  int listener;
+  sockaddr_in addr{};
+  listener = socket(AF_INET, SOCK_STREAM, 0);
+  if (listener < 0) {
+    perror("socket");
+    exit(1);
+  }
+
+  setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, (void *)&turn_on, sizeof(turn_on));
+  setsockopt(listener, IPPROTO_TCP, TCP_QUICKACK, (void *)&turn_on, sizeof(turn_on));
+
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(PORT);
+  addr.sin_addr.s_addr = htonl(INADDR_ANY);
+
+  if (bind(listener, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+    perror("bind");
+    exit(2);
+  }
+  listen(listener, 100);
+  return listener;
 }
 
-void do_use_fd(int epoll_fd, int fd)
-{
-    char buffer[MAXBUF];
-    int len = strlen(reply);
-    send(fd, reply, len, 0);
+static inline std::vector<std::thread> start_workers(int epollfd) {
+  std::vector<std::thread> threads;
 
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL) == -1)
-       handle_error("epoll delete");
+  for (unsigned int i = 0; i < thread_nums; ++i) {
+    threads.emplace_back([epollfd]() {
+      epoll_event events[max_events];
+      char buf[kReadBufferSize];
+      int nfds = 0;
+      while (true) {
+        nfds = epoll_wait(epollfd, events, max_events, 0);
+        if (nfds == -1) {
+          if (errno == EINTR) {
+            continue;
+          }
+          perror("epoll_wait");
+          exit(EXIT_FAILURE);
+        }
 
-    close(fd);
+        for (int n = 0; n < nfds; ++n) {
+          int sock = events[n].data.fd;
+          ssize_t data_len = 0;
+          if ((data_len = read(sock, buf, kReadBufferSize)) <= 0) {
+            close(sock);
+            continue;
+          }
+
+          auto req = hl::parse_request(boost::string_ref(buf, std::numeric_limits<size_t>::max()));
+
+          std::cout << req.url << std::endl;
+
+          if(req.method == hl::RequestMethod::POST) {
+            std::cout << req.body << std::endl;
+          }
+
+          epoll_event ev{};
+          ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
+          ev.data.fd = sock;
+          if (epoll_ctl(epollfd, EPOLL_CTL_MOD, sock, &ev) == -1) {
+            perror("epoll_ctl: conn_sock");
+            exit(EXIT_FAILURE);
+          }
+
+          write(sock, &reply, MAX_IOVEC_PART);
+        }
+      }
+    });
+  }
+  return threads;
 }
 
-void run()
-{
-    struct epoll_event ev, events[MAX_EVENTS];
-    struct sockaddr_in my_addr;
-    struct sockaddr_in peer_addr;
-    char buffer[MAXBUF];
-    int listen_sock, conn_sock, nfds, epoll_fd;
-    int n = 0;
-
-
-    listen_sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (listen_sock == -1)
-        handle_error("socket");
-
-    memset(&peer_addr, 0, sizeof(struct sockaddr_in));
-    memset(&my_addr, 0, sizeof(struct sockaddr_in));
-    socklen_t addrlen= sizeof(peer_addr);
-
-    my_addr.sin_family = AF_INET;
-    my_addr.sin_port = htons(8001);
-    my_addr.sin_addr.s_addr = INADDR_ANY;
-
-    if (bind(listen_sock , (struct sockaddr*)&my_addr,
-         sizeof my_addr) != 0)
-        handle_error("bind");
-
-    if(listen(listen_sock, 20) != 0)
-        handle_error("listen");
-
-    /* Initialize the epoll */
-    epoll_fd = epoll_create(10);
-    if (epoll_fd == -1) {
-        handle_error("epoll_create");
+static inline void main_loop(int listener, int epollfd) {
+  while (true) {
+    int sock = accept(listener, nullptr, nullptr);
+    if (sock == -1) {
+      perror("accept");
+      exit(EXIT_FAILURE);
     }
 
-    ev.events = EPOLLIN;
-    ev.data.fd = listen_sock;
-
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, listen_sock, &ev) == -1)
-        handle_error("epoll_ctl: listen_sock");
-
-    for (;;) {
-
-        nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
-        if (nfds == -1)
-            handle_error("epoll_wait");
-
-         for (n = 0; n < nfds ; ++n) {
-             if (events[n].data.fd == listen_sock) {
-                 conn_sock = accept(listen_sock,
-                     (struct sockaddr*) &peer_addr, &addrlen);
-             if (conn_sock == -1)
-                 handle_error("accept");
-             setnonblocking(conn_sock);
-             printf("%s:%d connected\n",
-                 inet_ntoa(peer_addr.sin_addr), ntohs(peer_addr.sin_port));
-             ev.events = EPOLLIN | EPOLLET;
-             ev.data.fd = conn_sock;
-             if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, conn_sock,
-                 &ev) == -1)
-                 handle_error("epoll_ctl: conn_sock");
-             } else {
-                 do_use_fd(epoll_fd, events[n].data.fd);
-             }
-         }
+    setsockopt(sock, SOL_SOCKET, SO_SNDBUF,
+               (void *)&new_buf_size, sizeof(new_buf_size));
+    setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+               (void *)&new_buf_size, sizeof(new_buf_size));
+    setsockopt(sock, SOL_SOCKET, SO_DONTROUTE, (void *)&turn_on, sizeof(turn_on));
+    setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (void *)&turn_on, sizeof(turn_on));
+    epoll_event ev{};
+    ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
+    ev.data.fd = sock;
+    if (epoll_ctl(epollfd, EPOLL_CTL_ADD, sock, &ev) == -1) {
+      perror("epoll_ctl: conn_sock");
+      exit(EXIT_FAILURE);
     }
+  }
 }
 
-int main()
-{
-    signal(SIGPIPE, SIG_IGN);
-    run();
-    exit (0);
+int main() {
+  signal(SIGPIPE, SIG_IGN);
+
+  int listener = start_listen();
+
+  int epollfd = epoll_create1(0);
+  if (epollfd == -1) {
+    perror("epoll_create1");
+    exit(EXIT_FAILURE);
+  }
+
+  auto threads = start_workers(epollfd);
+
+  main_loop(listener, epollfd);
 }
