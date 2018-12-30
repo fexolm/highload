@@ -1,14 +1,12 @@
-//
-// Created by Artem on 29.12.2018.
-//
-
 #include <cstring>
+#include <cassert>
+#include <iostream>
 #include "Request.h"
 
 namespace hl {
 
 Request parse_request(boost::string_ref request_string) {
-  const int headers_length = 70;
+  //const int headers_length = 70;
 
   Request result;
   if (request_string[0] == 'G') {
@@ -23,20 +21,16 @@ Request parse_request(boost::string_ref request_string) {
     size_t urlend = urlstart;
     for (; request_string[urlend] != ' '; urlend++);
     result.url = request_string.substr(urlstart, urlend - urlstart);
-    size_t count_n = 0;
-    size_t body_start = urlend + headers_length;
-    for(; count_n < 2; body_start++) {
-      switch (request_string[body_start]) {
-      case '\n':
-        count_n++;
-        break;
-      case '\r': break;
-      default:
-        count_n=0;
-        break;
-      }
+    size_t body_start = urlend;
+
+    for(;body_start < request_string.length() && request_string[body_start] != '{'; body_start++);
+
+    if(body_start >= request_string.length()) {
+      std::cout << "error" << std::endl;
+//      std::cout << request_string << std::endl;
+      return result;
     }
-    result.body = request_string.substr(body_start, strlen(request_string.data()));
+    result.body = request_string.substr(body_start, request_string.length() - body_start);
   }
   return result;
 }

@@ -13,25 +13,22 @@
 #include <unistd.h>
 #include <vector>
 #include <sys/uio.h>
+#include <cassert>
+#include <fcntl.h>
 
 #include "Request.h"
 
 char reply[] =
     "HTTP/1.1 200 OK\n"
-    "Date: Thu, 19 Feb 2009 12:27:04 GMT\n"
-    "Server: Apache/2.2.3\n"
-    "Last-Modified: Wed, 18 Jun 2003 16:05:58 GMT\n"
-    "ETag: \"56d-9989200-1132c580\"\n"
-    "Content-Type: text/html\n"
+    "Content-Type: application/json\n"
     "Content-Length: 15\n"
-    "Accept-Ranges: bytes\n"
-    "Connection: close\n"
+    "Connection: keep-alive\n"
     "\n"
     "sdfkjsdnbfkjbsf";
 
 const int new_buf_size = 1024 * 512;
 const int turn_on = 1;
-const unsigned int thread_nums = 3;
+const unsigned int thread_nums = 1;
 const size_t kReadBufferSize = 2048;
 const int MAX_IOVEC_PART = 1000;
 const int max_events = 1000;
@@ -66,7 +63,7 @@ static inline std::vector<std::thread> start_workers(int epollfd) {
   for (unsigned int i = 0; i < thread_nums; ++i) {
     threads.emplace_back([epollfd]() {
       epoll_event events[max_events];
-      char buf[kReadBufferSize];
+      char buf[kReadBufferSize * 10];
       int nfds = 0;
       while (true) {
         nfds = epoll_wait(epollfd, events, max_events, 0);
@@ -77,22 +74,30 @@ static inline std::vector<std::thread> start_workers(int epollfd) {
           perror("epoll_wait");
           exit(EXIT_FAILURE);
         }
-
         for (int n = 0; n < nfds; ++n) {
           int sock = events[n].data.fd;
-          ssize_t data_len = 0;
-          if ((data_len = read(sock, buf, kReadBufferSize)) <= 0) {
-            close(sock);
+
+          size_t data_len = 0;
+          while(auto len = read(sock, buf + data_len, kReadBufferSize)) {
+            if(len < 0)
+              break;
+            data_len += len;
+          }
+
+          if(data_len == 0) {
             continue;
           }
 
-          auto req = hl::parse_request(boost::string_ref(buf, std::numeric_limits<size_t>::max()));
-
-          std::cout << req.url << std::endl;
-
-          if(req.method == hl::RequestMethod::POST) {
-            std::cout << req.body << std::endl;
+          try {
+            hl::parse_request(boost::string_ref(buf, data_len));
+          } catch (...) {
+            std::cout << buf << std::endl;
           }
+//          if(req.method == hl::RequestMethod::POST) {
+//            std::cout << req.body << std::endl;
+//          }
+
+          write(sock, &reply, MAX_IOVEC_PART);
 
           epoll_event ev{};
           ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
@@ -101,8 +106,6 @@ static inline std::vector<std::thread> start_workers(int epollfd) {
             perror("epoll_ctl: conn_sock");
             exit(EXIT_FAILURE);
           }
-
-          write(sock, &reply, MAX_IOVEC_PART);
         }
       }
     });
@@ -124,6 +127,9 @@ static inline void main_loop(int listener, int epollfd) {
                (void *)&new_buf_size, sizeof(new_buf_size));
     setsockopt(sock, SOL_SOCKET, SO_DONTROUTE, (void *)&turn_on, sizeof(turn_on));
     setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (void *)&turn_on, sizeof(turn_on));
+    setsockopt(sock, SOL_SOCKET, SOCK_NONBLOCK, (void *)&turn_on, sizeof(turn_on));
+    int flags = fcntl(sock,F_GETFL,0);
+    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
     epoll_event ev{};
     ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT;
     ev.data.fd = sock;

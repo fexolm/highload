@@ -1,7 +1,3 @@
-//
-// Created by Artem on 29.12.2018.
-//
-
 #ifndef HIGHLOAD_REQUEST_H
 #define HIGHLOAD_REQUEST_H
 
