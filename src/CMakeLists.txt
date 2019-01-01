@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-FILE(GLOB SOURCES *.cpp *.h)
+FILE(GLOB SOURCES *.cpp *.h */*.cpp */*.h)
 
-add_executable(highload ${SOURCES} Request.cpp Request.h)
+include_directories(${LIB_DIR} ${SRC_DIR})
+add_executable(highload ${SOURCES} ${LIB_DIR}/HttpParser/http_parser.c HTTP/constants.h)
