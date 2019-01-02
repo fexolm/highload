@@ -48,9 +48,14 @@ bool hl::http::Request::Parse(char *request_string, int len) {
   }
   if (method == RequestMethod::GET)
     return true;
+  if(method == RequestMethod::NOT_PARSED){
+    return false;
+  }
   return contentlength == 0 || len - (body - request_string) >= contentlength;
 }
 void Request::parse(char *request_string, int len) {
+
+  std::cout << request_string << std::endl;
   TRACE_CALL(__FUNCTION__)
   int urlStart = 0;
   if (request_string[0] == 'G') {
@@ -64,7 +69,11 @@ void Request::parse(char *request_string, int len) {
     return;
   }
   int urlLen = 0;
-  for (; request_string[urlStart + urlLen] != ' '; urlLen++);
+  for (; request_string[urlStart + urlLen] != ' ' && urlLen < len; urlLen++);
+  if(urlLen == len) {
+    method = RequestMethod::NOT_PARSED;
+    return;
+  }
   auto url_str = request_string + urlStart;
   parse_url(this, url_str, urlLen);
   if (method == RequestMethod::GET)
