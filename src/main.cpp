@@ -8,6 +8,4 @@ int main() {
   hl::http::Server server;
 
   server.SpawnThreads(4);
-
-  while(true);
 }

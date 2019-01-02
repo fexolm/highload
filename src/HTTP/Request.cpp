@@ -11,7 +11,7 @@
 
 namespace hl::http {
 inline static void parse_url(Request *req, char *url, int len) {
-  TRACE_CALL(__FUNCTION__)
+  TRACE_CALL(__PRETTY_FUNCTION__)
   char *params = url;
   for (; *params && *params != '?'; ++params);
   if (*params) {
@@ -24,7 +24,7 @@ inline static void parse_url(Request *req, char *url, int len) {
 }
 
 int contentLength(char *request_string) {
-  TRACE_CALL(__FUNCTION__)
+  TRACE_CALL(__PRETTY_FUNCTION__)
 
   //std::cout << request_string << std::endl;
   char *line = request_string;
@@ -42,7 +42,7 @@ int contentLength(char *request_string) {
 }
 
 bool hl::http::Request::Parse(char *request_string, int len) {
-  TRACE_CALL(__FUNCTION__)
+  TRACE_CALL(__PRETTY_FUNCTION__)
   if (method == RequestMethod::NOT_PARSED) {
     parse(request_string, len);
   }
@@ -56,7 +56,7 @@ bool hl::http::Request::Parse(char *request_string, int len) {
 void Request::parse(char *request_string, int len) {
 
   std::cout << request_string << std::endl;
-  TRACE_CALL(__FUNCTION__)
+  TRACE_CALL(__PRETTY_FUNCTION__)
   int urlStart = 0;
   if (request_string[0] == 'G') {
     method = RequestMethod::GET;

@@ -14,10 +14,6 @@ class Server {
 private:
   std::vector<std::thread> m_threads;
   int m_listener;
-
-  void workerThread();
-  void processConnection(Connection *connection, int epollFd, ConnectionPool &connectionPool);
-  void processRequest(Connection *connection);
 public:
   explicit Server();
   void SpawnThreads(int threads);
