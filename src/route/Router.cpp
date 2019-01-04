@@ -4,11 +4,8 @@
 
 #include <iostream>
 #include <cstring>
-#include <cstdlib>
-#include <cctype>
 #include <utils/utils.h>
 #include "Router.h"
-#include "controllers/Account.h"
 namespace hl::route {
 
 char *BadRequest() {
@@ -35,19 +32,20 @@ char *Router::routePost(http::Connection *connection) {
   TRACE_CALL(__PRETTY_FUNCTION__)
   auto url = connection->request.url;
   auto params = connection->request.params;
+  auto body = connection->request.body;
   if (strncmp(url, "/accounts", 9) != 0) {
     return NotFound();
   }
   url += 9;
   if (strncmp(url, "/new", 4) == 0) {
-    return controllers::Account::Create();
+    return create(body);
   }
   if (strncmp(url, "/likes", 6) == 0) {
-    return controllers::Account::AddLikes(params);
+    return addLikes(params, body);
   }
   if (std::isdigit(*(url + 1))) {
     int id = (int) strtol(url + 1, &url, 10);
-    return controllers::Account::Update(params, id);
+    return update(params, id, body);
   }
   return NotFound();
 }
@@ -60,20 +58,41 @@ char *Router::routeGet(http::Connection *connection) {
   }
   url += 9;
   if (strncmp(url, "/filter", 7) == 0) {
-    return controllers::Account::Filter(params);
+    return filter(params);
   }
   if (strncmp(url, "/group", 6) == 0) {
-    return controllers::Account::Group(params);
+    return group(params);
   }
   if (std::isdigit(*(url + 1))) {
     int id = (int) strtol(url + 1, &url, 10);
     if (strncmp(url, "/recommend", 10) == 0) {
-      return controllers::Account::Recommend(params, id);
+      return recommend(params, id);
     }
     if (strncmp(url, "/suggest", 6) == 0) {
-      return controllers::Account::Suggest(params, id);
+      return suggest(params, id);
     }
   }
   return NotFound();
+}
+char *Router::create(char *body) {
+  return nullptr;
+}
+char *Router::addLikes(char *params, char *body) {
+  return nullptr;
+}
+char *Router::update(char *params, int id, char *body) {
+  return nullptr;
+}
+char *Router::filter(char *params) {
+  return nullptr;
+}
+char *Router::group(char *params) {
+  return nullptr;
+}
+char *Router::recommend(char *params, int id) {
+  return nullptr;
+}
+char *Router::suggest(char *params, int id) {
+  return nullptr;
 }
 }

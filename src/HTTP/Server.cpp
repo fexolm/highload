@@ -8,14 +8,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <fcntl.h>
 #include <iostream>
-#include <assert.h>
 
 #include "Server.h"
 #include "utils/utils.h"
-#include "constants.h"
-#include "Connection.h"
 #include "Worker.h"
 namespace hl::http {
 void Server::SpawnThreads(int threads) {

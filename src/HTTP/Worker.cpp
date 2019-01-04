@@ -8,28 +8,26 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <fcntl.h>
 #include <iostream>
 #include <assert.h>
 
 #include <utils/utils.h>
 #include "Worker.h"
-#include "Request.h"
 
 namespace hl::http {
 static inline bool check_err(epoll_event &event) {
   TRACE_CALL(__PRETTY_FUNCTION__)
   bool err = false;
   if ((event.events & EPOLLERR)) {
-    std::cout << "EPOLLERR" <<std::endl;
+    std::cout << "EPOLLERR" << std::endl;
     err = true;
   }
   if (event.events & EPOLLHUP) {
-    std::cout << "EPOLLHUP" <<std::endl;
+    std::cout << "EPOLLHUP" << std::endl;
     err = true;
   }
   if (!(event.events & EPOLLIN)) {
-    std::cout << "NO EPOLLIN" <<std::endl;
+    std::cout << "NO EPOLLIN" << std::endl;
     err = true;
   }
   return err;

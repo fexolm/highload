@@ -20,7 +20,7 @@
 
 class ScopeLogger {
 public:
-  explicit ScopeLogger( std::string const & msg );
+  explicit ScopeLogger(std::string const &msg);
   ~ScopeLogger();
   std::string msg{};
 };
@@ -31,5 +31,7 @@ public:
 #define TRACE_CALL(x)
 #endif
 
-
+namespace hl::utils {
+int percent_decode(char *out, char *in);
+}
 #endif //HIGHLOAD_UTILS_H

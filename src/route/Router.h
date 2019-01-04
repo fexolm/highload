@@ -9,10 +9,18 @@
 namespace hl::route {
 class Router {
 private:
-  char * routeGet(http::Connection *connection);
-  char * routePost(http::Connection *connection);
+  char *routeGet(http::Connection *connection);
+  char *routePost(http::Connection *connection);
+
+  char *create(char *body);
+  char *addLikes(char *params, char *body);
+  char *update(char *params, int id, char *body);
+  char *filter(char *params);
+  char *group(char *params);
+  char *recommend(char *params, int id);
+  char *suggest(char *params, int id);
 public:
-  char * Route(http::Connection *connection);
+  char *Route(http::Connection *connection);
 };
 }
 

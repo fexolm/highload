@@ -7,7 +7,6 @@
 #include <iostream>
 #include <utils/utils.h>
 #include "Request.h"
-#include "HttpParser/http_parser.h"
 
 namespace hl::http {
 inline static void parse_url(Request *req, char *url, int len) {
@@ -48,7 +47,7 @@ bool hl::http::Request::Parse(char *request_string, int len) {
   }
   if (method == RequestMethod::GET)
     return true;
-  if(method == RequestMethod::NOT_PARSED){
+  if (method == RequestMethod::NOT_PARSED) {
     return false;
   }
   return contentlength == 0 || len - (body - request_string) >= contentlength;
@@ -70,7 +69,7 @@ void Request::parse(char *request_string, int len) {
   }
   int urlLen = 0;
   for (; request_string[urlStart + urlLen] != ' ' && urlLen < len; urlLen++);
-  if(urlLen == len) {
+  if (urlLen == len) {
     method = RequestMethod::NOT_PARSED;
     return;
   }
