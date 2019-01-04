@@ -19,6 +19,9 @@ private:
   char *group(char *params);
   char *recommend(char *params, int id);
   char *suggest(char *params, int id);
+
+  char *badRequest();
+  char *notFound();
 public:
   char *Route(http::Connection *connection);
 };

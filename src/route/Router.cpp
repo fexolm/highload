@@ -7,15 +7,6 @@
 #include <utils/utils.h>
 #include "Router.h"
 namespace hl::route {
-char *BadRequest() {
-  TRACE_CALL(__PRETTY_FUNCTION__)
-  return nullptr;
-}
-
-char *NotFound() {
-  TRACE_CALL(__PRETTY_FUNCTION__)
-  return nullptr;
-}
 
 char *Router::Route(http::Connection *connection) {
   TRACE_CALL(__PRETTY_FUNCTION__)
@@ -24,7 +15,7 @@ char *Router::Route(http::Connection *connection) {
   case http::RequestMethod::GET:return routeGet(connection);
   case http::RequestMethod::POST:return routePost(connection);
   default:std::cout << "NOT PARSED METHOD PROCESSED";
-    return BadRequest();
+    return badRequest();
   }
 }
 char *Router::routePost(http::Connection *connection) {
@@ -33,7 +24,7 @@ char *Router::routePost(http::Connection *connection) {
   auto params = connection->request.params;
   auto body = connection->request.body;
   if (strncmp(url, "/accounts", 9) != 0) {
-    return NotFound();
+    return notFound();
   }
   url += 9;
   if (strncmp(url, "/new", 4) == 0) {
@@ -46,14 +37,14 @@ char *Router::routePost(http::Connection *connection) {
     int id = (int) strtol(url + 1, &url, 10);
     return update(params, id, body);
   }
-  return NotFound();
+  return notFound();
 }
 char *Router::routeGet(http::Connection *connection) {
   TRACE_CALL(__PRETTY_FUNCTION__)
   auto url = connection->request.url;
   auto params = connection->request.params;
   if (strncmp(url, "/accounts", 9) != 0) {
-    return NotFound();
+    return notFound();
   }
   url += 9;
   if (strncmp(url, "/filter", 7) == 0) {
@@ -71,6 +62,6 @@ char *Router::routeGet(http::Connection *connection) {
       return suggest(params, id);
     }
   }
-  return NotFound();
+  return notFound();
 }
 }

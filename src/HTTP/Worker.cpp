@@ -12,6 +12,7 @@
 #include <assert.h>
 
 #include <utils/utils.h>
+#include <cstring>
 #include "Worker.h"
 
 namespace hl::http {
@@ -20,14 +21,11 @@ static inline bool check_err(epoll_event &event) {
   bool err = false;
   if ((event.events & EPOLLERR)) {
     std::cout << "EPOLLERR" << std::endl;
-    err = true;
-  }
-  if (event.events & EPOLLHUP) {
-    std::cout << "EPOLLHUP" << std::endl;
-    err = true;
-  }
-  if (!(event.events & EPOLLIN)) {
-    std::cout << "NO EPOLLIN" << std::endl;
+    int error = 0;
+    socklen_t errlen = sizeof(error);
+    if (getsockopt(((Connection *) event.data.ptr)->fd, SOL_SOCKET, SO_ERROR, (void *) &error, &errlen) == 0) {
+      printf("error = %s\n", strerror(error));
+    }
     err = true;
   }
   return err;
@@ -156,19 +154,13 @@ static inline bool validate_json(Request &req) {
 
 void Worker::processRequest(Connection *connection) {
   TRACE_CALL(__PRETTY_FUNCTION__)
-  static std::string reply =
-      "HTTP/1.1 200 OK\n"
-      "Content-Type: application/json\n"
-      "Connection: keep-alive\n"
-      "Content-Length: \n\n"
-      "adsfasdfasdfasdfasdf";
 
   if (connection->request.method == RequestMethod::POST) {
     if (connection->request.contentlength)
       assert(validate_json(connection->request));
   }
-  m_router.Route(connection);
-  write(connection->fd, reply.data(), reply.size());
+  char *response = m_router.Route(connection);
+  write(connection->fd, response, strlen(response));
 }
 }
 
