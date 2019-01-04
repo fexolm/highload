@@ -1,7 +1,3 @@
-//
-// Created by Artem on 04.01.2019.
-//
-
 #ifndef HIGHLOAD_DATABASE_H
 #define HIGHLOAD_DATABASE_H
 

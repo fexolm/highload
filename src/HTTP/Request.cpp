@@ -25,7 +25,6 @@ inline static void parse_url(Request *req, char *url, int len) {
 int contentLength(char *request_string) {
   TRACE_CALL(__PRETTY_FUNCTION__)
 
-  //std::cout << request_string << std::endl;
   char *line = request_string;
   while (true) {
     line = strchr(line, '\n');
@@ -53,8 +52,6 @@ bool hl::http::Request::Parse(char *request_string, int len) {
   return contentlength == 0 || len - (body - request_string) >= contentlength;
 }
 void Request::parse(char *request_string, int len) {
-
-  std::cout << request_string << std::endl;
   TRACE_CALL(__PRETTY_FUNCTION__)
   int urlStart = 0;
   if (request_string[0] == 'G') {

@@ -1,6 +1,3 @@
-//
-// Created by Artem on 04.01.2019.
-//
 #include <rapidjson/document.h>
 #include <rapidjson/filereadstream.h>
 #include "Database.h"

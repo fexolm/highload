@@ -164,7 +164,6 @@ void Worker::processRequest(Connection *connection) {
       "adsfasdfasdfasdfasdf";
 
   if (connection->request.method == RequestMethod::POST) {
-    std::cout << "POST! " << connection->bufLen << std::endl;
     if (connection->request.contentlength)
       assert(validate_json(connection->request));
   }

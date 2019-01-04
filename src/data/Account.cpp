@@ -1,7 +1,3 @@
-//
-// Created by Artem on 04.01.2019.
-//
-
 #include "Account.h"
 
 namespace hl::data {
