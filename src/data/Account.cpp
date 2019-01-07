@@ -1,9 +1,7 @@
 #include "Account.h"
 
 namespace hl::data {
-int &Account::id() {
-  return m_id;
-}
+
 std::string &Account::fname() {
   return m_fname;
 }
@@ -45,5 +43,17 @@ std::string &Account::country() {
 }
 long &Account::joined() {
   return m_joined;
+}
+bool &Account::created() {
+  return m_created;
+}
+int Account::Serialize(int id, char *buf) {
+  return sprintf(buf,
+                 R"({"email":"%s","country":"%s","id":%d,"status":"%s","birth":%ld})",
+                 m_email.c_str(),
+                 m_country.c_str(),
+                 id,
+                 m_status.c_str(),
+                 m_birth);
 }
 }

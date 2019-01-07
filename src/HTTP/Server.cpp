@@ -4,7 +4,6 @@
 
 #include <sys/unistd.h>
 #include <sys/epoll.h>
-#include <cstdlib>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -17,11 +16,12 @@ namespace hl::http {
 void Server::SpawnThreads(int threads) {
   TRACE_CALL(__PRETTY_FUNCTION__)
   for (int i = 1; i < threads; i++) {
-    m_threads.emplace_back(&Worker::Start, new Worker(m_listener));
+    m_threads.emplace_back(&Worker::Start, new Worker(m_listener, m_database));
   }
-  (new Worker(m_listener))->Start();
+  (new Worker(m_listener, m_database))->Start();
 }
-Server::Server() {
+Server::Server(data::Database *db)
+    : m_database(db) {
   TRACE_CALL(__PRETTY_FUNCTION__)
   m_listener = ::socket(AF_INET, SOCK_STREAM, 0);
   HL_CLOSE_ON_FAIL(::setsockopt(m_listener, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes)));
@@ -34,6 +34,6 @@ Server::Server() {
   addr.sin_port = htons(PORT);
   addr.sin_addr.s_addr = htonl(INADDR_ANY);
   HL_CLOSE_ON_FAIL(::bind(m_listener, (struct sockaddr *) &addr, sizeof(addr)));
-  HL_CLOSE_ON_FAIL(::listen(m_listener, 100));
+  HL_CLOSE_ON_FAIL(::listen(m_listener, SOMAXCONN));
 }
 }

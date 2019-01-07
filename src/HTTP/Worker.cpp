@@ -31,9 +31,11 @@ static inline bool check_err(epoll_event &event) {
   return err;
 }
 
-Worker::Worker(int listener)
-    : m_connectionPool(new ConnectionPool(max_events)),
-      m_listener(listener) {
+Worker::Worker(int listener, data::Database *db)
+    : m_connectionPool(new ConnectionPool(max_events * 10)),
+      m_listener(listener),
+      m_database(db),
+      m_router(m_database) {
   TRACE_CALL(__PRETTY_FUNCTION__)
   m_epollFd = epoll_create1(0);
   HL_CLOSE_ON_FAIL(m_epollFd);

@@ -6,7 +6,7 @@
 namespace hl::data {
 class Account {
 private:
-  int m_id;
+  bool m_created;
   std::string m_fname;
   std::string m_sname;
   std::string m_email;
@@ -23,7 +23,7 @@ private:
   long m_joined;
 
 public:
-  int &id();
+  bool &created();
   std::string &fname();
   std::string &sname();
   std::string &email();
@@ -38,6 +38,8 @@ public:
   std::string &city();
   std::string &country();
   long &joined();
+
+  int Serialize(int id, char *buf);
 };
 }
 #endif //HIGHLOAD_ACCOUNT_H

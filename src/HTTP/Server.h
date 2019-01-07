@@ -7,6 +7,7 @@
 
 #include <vector>
 #include <thread>
+#include <data/Database.h>
 #include "Connection.h"
 
 namespace hl::http {
@@ -14,8 +15,9 @@ class Server {
 private:
   std::vector<std::thread> m_threads;
   int m_listener;
+  data::Database *m_database;
 public:
-  explicit Server();
+  explicit Server(data::Database *db);
   void SpawnThreads(int threads);
 };
 }

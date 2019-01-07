@@ -22,6 +22,7 @@ char *Router::routePost(http::Connection *connection) {
   TRACE_CALL(__PRETTY_FUNCTION__)
   auto url = connection->request.url;
   auto params = connection->request.params;
+  utils::percent_decode(params, params);
   auto body = connection->request.body;
   if (strncmp(url, "/accounts", 9) != 0) {
     return notFound();
@@ -43,6 +44,7 @@ char *Router::routeGet(http::Connection *connection) {
   TRACE_CALL(__PRETTY_FUNCTION__)
   auto url = connection->request.url;
   auto params = connection->request.params;
+  utils::percent_decode(params, params);
   if (strncmp(url, "/accounts", 9) != 0) {
     return notFound();
   }

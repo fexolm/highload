@@ -5,17 +5,18 @@
 namespace hl::data {
 void Database::LoadJson(const char *path) {
   auto fp = fopen(path, "rb");
-  static char readBuffer[65536];
+  char readBuffer[65536];
   rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
   rapidjson::Document document;
 
   document.ParseStream(is);
+  fclose(fp);
 
   auto &accounts = document["accounts"];
   assert(accounts.IsArray());
   for (auto &v : accounts.GetArray()) {
     Account a;
-    a.id() = v["id"].GetInt();
+    auto id = v["id"].GetInt();
     a.email() = v["email"].GetString();
     if (v.HasMember("fname"))
       a.fname() = v["fname"].GetString();
@@ -46,7 +47,27 @@ void Database::LoadJson(const char *path) {
         a.likes().emplace_back(like["id"].GetInt(), like["ts"].GetInt64());
       }
     }
-    m_accounts.push_back(a);
+    m_accounts[id] = a;
+    m_accounts[id].created() = true;
+    m_len = std::max(id, m_len);
+    m_pages[id / 64] |= (((uint64_t )1) << id % 64);
   }
+}
+Account *Database::accounts() {
+  return m_accounts;
+}
+int Database::len() {
+  return m_len;
+}
+Database::Database()
+    : m_accounts(new Account[max_records_count]),
+      m_pages(new uint64_t[pages_count]) {
+  for (int i = 0; i < max_records_count; i++) {
+    m_accounts[i].created() = false;
+    memset(m_pages, 0, sizeof(uint64_t) * pages_count);
+  }
+}
+uint64_t *Database::pages() {
+  return m_pages;
 }
 }

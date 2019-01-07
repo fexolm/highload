@@ -28,7 +28,7 @@ int hl::utils::percent_decode(char *out, char *in) {
                                 -1, -1, -1, -1, -1};
   char c, v1, v2;
   if (in != nullptr) {
-    while ((c = *in++) != '\0') {
+    while ((c = *in++) != ' ') {
       switch (c) {
       case '%':
         if (!(v1 = *in++) || (v1 = tbl[(unsigned char) v1]) < 0
