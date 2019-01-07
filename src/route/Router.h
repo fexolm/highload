@@ -28,7 +28,7 @@ enum class Param {
 };
 
 namespace hl::route {
-using filters_t = std::vector<std::function<int(data::Account *, uint64_t *, uint64_t *)>>;
+using filters_t = std::vector<std::function<int(data::Account *, uint64_t *, uint64_t *, int &)>>;
 
 class Router {
 private:

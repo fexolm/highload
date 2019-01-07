@@ -1,5 +1,4 @@
 #include <unordered_set>
-#include <cstdlib>
 
 #include "Router.h"
 namespace hl::route {
@@ -9,7 +8,7 @@ void iterate_page8(int pageNum, int shift, data::Account *accounts, uint8_t page
   if (page == 0)
     return;
 
-  for (int i = 0; i < 8; i++) {
+  for (int i = 7; i >= 0; i--) {
     if (page & (((uint8_t) 1) << i)) {
       int ind = pageNum * 64 + shift + i;
       func(ind, accounts[ind], pageNum);
@@ -23,8 +22,8 @@ void iterate_page16(int pageNum, int shift, data::Account *accounts, uint16_t pa
   uint16_t mask = 0x00FF;
   auto left = static_cast<uint8_t>(page >> 8);
   auto right = static_cast<uint8_t>(page & mask);
-  iterate_page8(pageNum, shift, accounts, right, func);
   iterate_page8(pageNum, shift + 8, accounts, left, func);
+  iterate_page8(pageNum, shift, accounts, right, func);
 }
 template<typename F>
 void iterate_page32(int pageNum, int shift, data::Account *accounts, uint32_t page, F func) {
@@ -33,8 +32,8 @@ void iterate_page32(int pageNum, int shift, data::Account *accounts, uint32_t pa
   uint32_t mask = 0x0000FFFF;
   auto left = static_cast<uint16_t>(page >> 16);
   auto right = static_cast<uint16_t>(page & mask);
-  iterate_page16(pageNum, shift, accounts, right, func);
   iterate_page16(pageNum, shift + 16, accounts, left, func);
+  iterate_page16(pageNum, shift, accounts, right, func);
 }
 template<typename F>
 void iterate_page64(int pageNum, data::Account *accounts, uint64_t page, F func) {
@@ -43,12 +42,12 @@ void iterate_page64(int pageNum, data::Account *accounts, uint64_t page, F func)
   uint64_t mask = 0x00000000FFFFFFFF;
   auto left = static_cast<uint32_t>(page >> 32);
   auto right = static_cast<uint32_t>(page & mask);
-  iterate_page32(pageNum, 0, accounts, right, func);
   iterate_page32(pageNum, 32, accounts, left, func);
+  iterate_page32(pageNum, 0, accounts, right, func);
 }
 template<typename F>
 void iterate_pages(data::Account *accounts, uint64_t *pages, F func) {
-  for (int i = 0; i < pages_count; i++) {
+  for (int i = pages_count - 1; i >= 0; i--) {
     iterate_page64(i, accounts, pages[i], func);
   }
 }
@@ -198,7 +197,7 @@ int Router::nextParam(char *&params, filters_t &filters, int &limit) {
       birth_filter(Param::gt, params, filters);
       found = true;
     }
-    if (strncmp(params, "year", 5) == 0) {
+    if (strncmp(params, "year", 4) == 0) {
       params += 5;
       birth_filter(Param::year, params, filters);
       found = true;
@@ -242,8 +241,8 @@ int Router::nextParam(char *&params, filters_t &filters, int &limit) {
     params += 9;
     found = true;
   }
-  if(strncmp(params, "limit", 5) == 0) {
-    params+=6;
+  if (strncmp(params, "limit", 5) == 0) {
+    params += 6;
     limit = static_cast<int>(strtol(params, &params, 10));
     found = true;
   }
@@ -274,15 +273,18 @@ char *Router::filter(char *params) {
       break;
     return badRequest();
   }
-  if(limit == -1) {
+  if (limit == -1) {
     return badRequest();
   }
 
   memcpy(pages, m_database->pages(), sizeof(uint64_t) * pages_count);
 
+  int fields = 0;
   for (auto &filter : filters) {
     memset(tmp_pages, 0, sizeof(uint64_t) * pages_count);
-    filter(m_database->accounts(), pages, tmp_pages);
+    if (filter(m_database->accounts(), pages, tmp_pages, fields) == -1) {
+      return badRequest();
+    }
 
     for (int i = 0; i < pages_count; i++) {
       pages[i] &= tmp_pages[i];
@@ -308,27 +310,20 @@ char *Router::filter(char *params) {
   buf[header_len + 7] = '\n';
   buf[header_len + 8] = '\r';
   buf[header_len + 9] = '\n';
-
-  iterate_pages(m_database->accounts(), pages, [&size, &limit, &len](int ind, auto &a, int pageNum) {
+  strcpy(buf + len, R"({"accounts":[)");
+  len += 13;
+  iterate_pages(m_database->accounts(), pages, [&size, &limit, &len, fields](int ind, auto &a, int pageNum) {
     if (limit <= size)
       return;
-    if (size == 0) {
-      strcpy(buf + len, R"({"accounts":[)");
-      len += 13;
-    } else {
+    if (size != 0) {
       buf[len++] = ',';
     }
     size++;
-    len += a.Serialize(ind, buf + len);
+    len += a.Serialize(ind, buf + len, fields);
   });
 
-  if(size > 0) {
-    buf[len++] = ']';
-    buf[len++] = '}';
-  } else {
-    buf[len++] = '{';
-    buf[len++] = '}';
-  }
+  buf[len++] = ']';
+  buf[len++] = '}';
 
   int offset = sprintf(buf + header_len, "%ld", len - header_len - 10);
   buf[header_len + offset] = ' ';
@@ -337,7 +332,8 @@ char *Router::filter(char *params) {
 }
 
 void Router::sex_filter(Param param, char *args, filters_t &filters) {
-  filters.push_back([param, args](auto accounts, auto pages, auto tmp_pages) mutable {
+  filters.push_back([param, args](auto accounts, auto pages, auto tmp_pages, int &fields) mutable {
+    fields |= data::SEX;
     if (param != Param::eq) {
       std::cout << "SEX incorrect parameter" << std::endl;
       return -1;
@@ -356,9 +352,42 @@ void Router::sex_filter(Param param, char *args, filters_t &filters) {
     return 0;
   });
 }
-void Router::email_filter(Param param, char *args, filters_t &filters) {}
+void Router::email_filter(Param param, char *args, filters_t &filters) {
+  filters.push_back([param, args](auto accounts, auto pages, auto tmp_pages, int &fields) mutable {
+    if (param != Param::domain && param != Param::lt && param != Param::gt) {
+      std::cout << "Email incorrect parameter" << std::endl;
+      return -1;
+    }
+    char *arg;
+    int len = nextArg(args, arg);
+    if (len == 0) {
+      std::cout << "Email incorrect argument" << std::endl;
+      return -1;
+    }
+    iterate_pages(accounts, pages, [&tmp_pages, arg, param, len](int ind, data::Account &a, int pageNum) {
+      if (param == Param::domain) {
+        const char *email = a.email().c_str();
+        for (; *email != '@'; email++);
+        email++;
+        if (strncmp(email, arg, static_cast<size_t>(len)) == 0) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      } else if (param == Param::lt) {
+        if (strncmp(a.email().c_str(), arg, static_cast<size_t>(len)) < 0) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      } else if (param == Param::gt) {
+        if (strncmp(a.email().c_str(), arg, static_cast<size_t>(len)) >= 0) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      }
+    });
+    return 0;
+  });
+}
 void Router::status_filter(Param param, char *args, filters_t &filters) {
-  filters.push_back([param, args](auto accounts, auto pages, auto tmp_pages) mutable {
+  filters.push_back([param, args](auto accounts, auto pages, auto tmp_pages, int &fields) mutable {
+    fields |= data::STATUS;
     if (param != Param::eq && param != Param::neq) {
       std::cout << "Status incorrect parameter" << std::endl;
       return -1;
@@ -379,7 +408,7 @@ void Router::status_filter(Param param, char *args, filters_t &filters) {
   });
 }
 void Router::fname_filter(Param param, char *args, filters_t &filters) {
-  filters.push_back([param, args](auto accounts, auto pages, auto tmp_pages) mutable {
+  filters.push_back([param, args](auto accounts, auto pages, auto tmp_pages, int &fields) mutable {
     if (param != Param::eq && param != Param::any && param != Param::null) {
       std::cout << "Fname incorrect parameter" << std::endl;
       return -1;
@@ -389,6 +418,9 @@ void Router::fname_filter(Param param, char *args, filters_t &filters) {
     if (len == 0) {
       std::cout << "Fname incorrect argument" << std::endl;
       return -1;
+    }
+    if ((param != Param::null) || (arg[0] == '0')) {
+      fields |= data::FNAME;
     }
     iterate_pages(accounts, pages, [param, &tmp_pages, arg, args, len](int ind, data::Account &a, int pageNum) {
       char *as = args;
@@ -418,12 +450,273 @@ void Router::fname_filter(Param param, char *args, filters_t &filters) {
     return 0;
   });
 }
-void Router::sname_filter(Param param, char *args, filters_t &filters) {}
-void Router::phone_filter(Param param, char *args, filters_t &filters) {}
-void Router::county_filter(Param param, char *args, filters_t &filters) {}
-void Router::city_filter(Param param, char *args, filters_t &filters) {}
-void Router::birth_filter(Param param, char *args, filters_t &filters) {}
-void Router::interests_filter(Param param, char *args, filters_t &filters) {}
-void Router::likes_filter(Param param, char *args, filters_t &filters) {}
-void Router::premium_filter(Param param, char *args, filters_t &filters) {}
+void Router::sname_filter(Param param, char *args, filters_t &filters) {
+  filters.push_back([param, args](auto accounts, auto pages, auto tmp_pages, int &fields) mutable {
+    if (param != Param::eq && param != Param::starts && param != Param::null) {
+      std::cout << "Sname incorrect parameter" << std::endl;
+      return -1;
+    }
+    char *arg;
+    int len = nextArg(args, arg);
+    if (len == 0) {
+      std::cout << "Sname incorrect argument" << std::endl;
+      return -1;
+    }
+
+    if ((param != Param::null) || (arg[0] == '0')) {
+      fields |= data::SNAME;
+    }
+    iterate_pages(accounts, pages, [param, &tmp_pages, arg, len](int ind, data::Account &a, int pageNum) {
+      if (param == Param::eq) {
+        if (strncmp(a.sname().c_str(), arg, static_cast<size_t>(len)) == 0) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      } else if (param == Param::null) {
+        bool cmp = a.sname().empty();
+        if ((cmp && *arg == '1') || (!cmp && *arg == '0')) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      } else if (param == Param::starts) {
+        if (strncmp(a.sname().c_str(), arg, static_cast<size_t>(len)) == 0) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      }
+    });
+    return 0;
+  });
+}
+void Router::phone_filter(Param param, char *args, filters_t &filters) {
+  filters.push_back([param, args](auto accounts, auto pages, auto tmp_pages, int &fields) mutable {
+    if (param != Param::code && param != Param::null) {
+      std::cout << "Phone incorrect parameter" << std::endl;
+      return -1;
+    }
+    char *arg;
+    int len = nextArg(args, arg);
+    if (len == 0) {
+      std::cout << "Phone incorrect argument" << std::endl;
+      return -1;
+    }
+    if ((param != Param::null) || (arg[0] == '0')) {
+      fields |= data::PHONE;
+    }
+    iterate_pages(accounts, pages, [param, &tmp_pages, arg](int ind, data::Account &a, int pageNum) {
+      if (param == Param::code) {
+        if (strncmp(a.phone().c_str() + 2, arg, 3) == 0) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      } else if (param == Param::null) {
+        bool cmp = a.phone().empty();
+        if ((cmp && *arg == '1') || (!cmp && *arg == '0')) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      }
+    });
+    return 0;
+  });
+}
+void Router::county_filter(Param param, char *args, filters_t &filters) {
+  filters.push_back([param, args](auto accounts, auto pages, auto tmp_pages, int &fields) mutable {
+    if (param != Param::eq && param != Param::null) {
+      std::cout << "Country incorrect parameter" << std::endl;
+      return -1;
+    }
+    char *arg;
+    int len = nextArg(args, arg);
+    if (len == 0) {
+      std::cout << "Country incorrect argument" << std::endl;
+      return -1;
+    }
+    if ((param != Param::null) || (arg[0] == '0')) {
+      fields |= data::COUNTRY;
+    }
+    iterate_pages(accounts, pages, [param, &tmp_pages, arg, len](int ind, data::Account &a, int pageNum) {
+      if (param == Param::eq) {
+        if (strncmp(a.country().c_str(), arg, static_cast<size_t>(len)) == 0) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      } else if (param == Param::null) {
+        bool cmp = a.country().empty();
+        if ((cmp && *arg == '1') || (!cmp && *arg == '0')) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      }
+    });
+    return 0;
+  });
+}
+void Router::city_filter(Param param, char *args, filters_t &filters) {
+  filters.push_back([param, args](auto accounts, auto pages, auto tmp_pages, int &fields) mutable {
+    if (param != Param::eq && param != Param::any && param != Param::null) {
+      std::cout << "City incorrect parameter" << std::endl;
+      return -1;
+    }
+    char *arg;
+    int len = nextArg(args, arg);
+    if (len == 0) {
+      std::cout << "City incorrect argument" << std::endl;
+      return -1;
+    }
+    if ((param != Param::null) || (arg[0] == '0')) {
+      fields |= data::CITY;
+    }
+    iterate_pages(accounts, pages, [param, &tmp_pages, arg, args, len](int ind, data::Account &a, int pageNum) {
+      char *as = args;
+      if (param == Param::eq || param == Param::any) {
+        if (strncmp(a.city().c_str(), arg, static_cast<size_t>(len)) == 0) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      }
+      if (param == Param::any) {
+        while (true) {
+          char *ar;
+          int l = nextArg(as, ar);
+          if (l == 0)
+            break;
+          if (strncmp(a.city().c_str(), ar, static_cast<size_t>(l)) == 0) {
+            tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+            break;
+          }
+        }
+      } else if (param == Param::null) {
+        bool cmp = a.city().empty();
+        if ((cmp && *arg == '1') || (!cmp && *arg == '0')) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      }
+    });
+    return 0;
+  });
+}
+void Router::birth_filter(Param param, char *args, filters_t &filters) {
+  filters.push_back([param, args, this](auto accounts, auto pages, auto tmp_pages, int &fields) mutable {
+    fields |= data::BIRTH;
+    if (param != Param::lt && param != Param::gt && param != Param::year) {
+      std::cout << "Birth incorrect parameter" << std::endl;
+      return -1;
+    }
+    char *arg;
+    int len = nextArg(args, arg);
+    if (len == 0) {
+      std::cout << "Birth incorrect argument" << std::endl;
+      return -1;
+    }
+    uint64_t time = strtoull(arg, &arg, 10);
+    uint64_t year = 1950 + time / 60 / 60 / 24 / 31 / 12;
+    uint64_t curr_year = 1950 + m_database->time() / 60 / 60 / 24 / 31 / 12;
+    iterate_pages(accounts, pages, [param, &tmp_pages, time, year, curr_year](int ind, data::Account &a, int pageNum) {
+      if ((param == Param::lt && a.birth() < time) || (param == Param::gt && a.birth() > time)) {
+        tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+      } else if (param == Param::year) {
+        if (year == curr_year) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      }
+    });
+    return 0;
+  });
+}
+void Router::interests_filter(Param param, char *args, filters_t &filters) {
+  filters.push_back([param, args](auto accounts, auto pages, auto tmp_pages, int &fields) mutable {
+    if (param != Param::contains && param != Param::any) {
+      std::cout << "Interests incorrect parameter" << std::endl;
+      return -1;
+    }
+    iterate_pages(accounts, pages, [param, &tmp_pages, args](int ind, data::Account &a, int pageNum) {
+      if (param == Param::contains) {
+        char *as = args;
+        bool success = true;
+        while (true) {
+          char *ar;
+          int l = nextArg(as, ar);
+          if (l == 0)
+            break;
+          if (!a.interests().count(ar)) {
+            success = false;
+            break;
+          }
+        }
+        if (success) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      } else if (param == Param::any) {
+        char *as = args;
+        while (true) {
+          char *ar;
+          int l = nextArg(as, ar);
+          if (l == 0)
+            break;
+          if (a.interests().count(std::string(ar, ar+l))) {
+            tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+            break;
+          }
+        }
+      }
+    });
+    return 0;
+  });
+}
+void Router::likes_filter(Param param, char *args, filters_t &filters) {
+  filters.push_back([param, args](auto accounts, auto pages, auto tmp_pages, int &fields) mutable {
+    if (param != Param::contains) {
+      std::cout << "Likes incorrect parameter" << std::endl;
+      return -1;
+    }
+    iterate_pages(accounts, pages, [param, &tmp_pages, args](int ind, data::Account &a, int pageNum) {
+      if (param == Param::contains) {
+        char *as = args;
+        bool success = true;
+        while (true) {
+          char *ar;
+          int l = nextArg(as, ar);
+          if (l == 0)
+            break;
+          if (!a.likes().count((int) strtol(ar, &ar, 10))) {
+            success = false;
+            break;
+          }
+        }
+        if (success) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      }
+    });
+    return 0;
+  });
+}
+void Router::premium_filter(Param param, char *args, filters_t &filters) {
+  filters.push_back([param, args, this](auto accounts, auto pages, auto tmp_pages, int &fields) mutable {
+    if (param != Param::now && param != Param::null) {
+      std::cout << "Premium incorrect parameter" << std::endl;
+      return -1;
+    }
+    char *arg;
+    int len = nextArg(args, arg);
+    if (len == 0) {
+      std::cout << "Premium incorrect argument" << std::endl;
+      return -1;
+    }
+    if(param != Param::null || arg[0]!= '1') {
+      fields |= data::PREMIUM;
+    }
+    iterate_pages(accounts, pages, [param, &tmp_pages, this, arg](int ind, data::Account &a, int pageNum) {
+      if (param == Param::now) {
+        uint64_t now_time = m_database->time();
+        uint64_t finish = a.premiumFinish();
+        uint64_t start = a.premiumStart();
+        if ((now_time < finish) && (now_time > start)) {
+          if (arg[0] == '1')
+            tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        } else if (arg[0] == '0')
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+      } else if (param == Param::null) {
+        if ((arg[0] == '1' && a.premiumFinish() == 0)
+            || ((arg[0] == '0' && a.premiumFinish() != 0))) {
+          tmp_pages[pageNum] |= ((uint64_t) 1) << ind % 64;
+        }
+      }
+    });
+    return 0;
+  });
+}
 }

@@ -162,7 +162,13 @@ void Worker::processRequest(Connection *connection) {
       assert(validate_json(connection->request));
   }
   char *response = m_router.Route(connection);
-  write(connection->fd, response, strlen(response));
+  size_t len = strlen(response);
+  int written = 0;
+  while(written < len ) {
+    ssize_t l = write(connection->fd, response+written, len - written);
+    if(l == -1) break;
+    written += l;
+  }
 }
 }
 

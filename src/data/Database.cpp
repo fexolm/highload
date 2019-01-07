@@ -34,7 +34,7 @@ void Database::LoadJson(const char *path) {
     a.status() = v["status"].GetString();
     if (v.HasMember("interests")) {
       for (auto &i : v["interests"].GetArray()) {
-        a.interests().emplace_back(i.GetString());
+        a.interests().insert(i.GetString());
       }
     }
     if (v.HasMember("premium")) {
@@ -44,7 +44,7 @@ void Database::LoadJson(const char *path) {
     }
     if (v.HasMember("likes")) {
       for (auto &like : v["likes"].GetArray()) {
-        a.likes().emplace_back(like["id"].GetInt(), like["ts"].GetInt64());
+        a.likes()[like["id"].GetInt()] = like["ts"].GetInt64();
       }
     }
     m_accounts[id] = a;
@@ -69,5 +69,8 @@ Database::Database()
 }
 uint64_t *Database::pages() {
   return m_pages;
+}
+uint64_t &Database::time() {
+  return m_time;
 }
 }
