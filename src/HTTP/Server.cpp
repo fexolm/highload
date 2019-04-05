@@ -16,12 +16,11 @@ namespace hl::http {
 void Server::SpawnThreads(int threads) {
   TRACE_CALL(__PRETTY_FUNCTION__)
   for (int i = 1; i < threads; i++) {
-    m_threads.emplace_back(&Worker::Start, new Worker(m_listener, m_database));
+    m_threads.emplace_back(&Worker::Start, new Worker(m_listener));
   }
-  (new Worker(m_listener, m_database))->Start();
+  (new Worker(m_listener))->Start();
 }
-Server::Server(data::Database *db)
-    : m_database(db) {
+Server::Server() {
   TRACE_CALL(__PRETTY_FUNCTION__)
   m_listener = ::socket(AF_INET, SOCK_STREAM, 0);
   HL_CLOSE_ON_FAIL(::setsockopt(m_listener, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes)));

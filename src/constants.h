@@ -12,4 +12,6 @@ const int max_events = 1000;
 const int pages_count = 23436;
 const int max_records_count = pages_count * 64;
 
+#define PORT 8080
+
 #endif //HIGHLOAD_CONSTANTS_H
