@@ -152,6 +152,17 @@ static inline bool validate_json(Request &req) {
   return count == 0;
 }
 
+char *notFound() {
+  TRACE_CALL(__PRETTY_FUNCTION__)
+  static char reply[] =
+      "HTTP/1.1 200 OK\r\n"
+      "Content-Type: application/json\r\n"
+      "Connection: keep-alive\r\n"
+      "Content-Length: 2\r\n\r\n"
+      "{}";
+  return reply;
+}
+
 void Worker::processRequest(Connection *connection) {
   TRACE_CALL(__PRETTY_FUNCTION__)
 
@@ -159,7 +170,7 @@ void Worker::processRequest(Connection *connection) {
     if (connection->request.contentlength)
       assert(validate_json(connection->request));
   }
-  char response[] = ""; //m_router.Route(connection);
+  auto response = notFound();
   size_t len = strlen(response);
   int written = 0;
   while(written < len ) {
