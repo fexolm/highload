@@ -1,3 +1,6 @@
 .idea
 cmake-build-*
 build
+token.txt
+logs
+tank_errors.log
