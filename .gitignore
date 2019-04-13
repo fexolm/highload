@@ -4,3 +4,6 @@ build
 token.txt
 logs
 tank_errors.log
+GPATH
+GRTAGS
+GTAGS
