@@ -8,23 +8,19 @@
 // file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 
+#include "server.hpp"
+#include <boost/asio.hpp>
 #include <iostream>
 #include <string>
-#include <boost/asio.hpp>
-#include "server.hpp"
 
-int main(int argc, char* argv[])
-{
-  try
-  {
+int main(int argc, char *argv[]) {
+  try {
     // Initialise the server.
     http::server::server s("127.0.0.1", "3005", "");
 
     // Run the server until stopped.
     s.run();
-  }
-  catch (std::exception& e)
-  {
+  } catch (std::exception &e) {
     std::cerr << "exception: " << e.what() << "\n";
   }
 

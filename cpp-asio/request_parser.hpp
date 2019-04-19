@@ -19,8 +19,7 @@ namespace server {
 struct request;
 
 /// Parser for incoming requests.
-class request_parser
-{
+class request_parser {
 public:
   /// Construct ready to parse the request method.
   request_parser();
@@ -36,11 +35,9 @@ public:
   /// required. The InputIterator return value indicates how much of the input
   /// has been consumed.
   template <typename InputIterator>
-  std::tuple<result_type, InputIterator> parse(request& req,
-      InputIterator begin, InputIterator end)
-  {
-    while (begin != end)
-    {
+  std::tuple<result_type, InputIterator>
+  parse(request &req, InputIterator begin, InputIterator end) {
+    while (begin != end) {
       result_type result = consume(req, *begin++);
       if (result == good || result == bad)
         return std::make_tuple(result, begin);
@@ -50,7 +47,7 @@ public:
 
 private:
   /// Handle the next character of input.
-  result_type consume(request& req, char input);
+  result_type consume(request &req, char input);
 
   /// Check if a byte is an HTTP character.
   static bool is_char(int c);
@@ -65,8 +62,7 @@ private:
   static bool is_digit(int c);
 
   /// The current state of the parser.
-  enum state
-  {
+  enum state {
     method_start,
     method,
     uri,

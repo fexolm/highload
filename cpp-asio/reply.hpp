@@ -11,20 +11,18 @@
 #ifndef HTTP_REPLY_HPP
 #define HTTP_REPLY_HPP
 
+#include "header.hpp"
+#include <boost/asio.hpp>
 #include <string>
 #include <vector>
-#include <boost/asio.hpp>
-#include "header.hpp"
 
 namespace http {
 namespace server {
 
 /// A reply to be sent to a client.
-struct reply
-{
+struct reply {
   /// The status of the reply.
-  enum status_type
-  {
+  enum status_type {
     ok = 200,
     created = 201,
     accepted = 202,
