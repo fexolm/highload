@@ -2,18 +2,18 @@
 // Created by Artem on 02.01.2019.
 //
 
-#include <sys/unistd.h>
-#include <sys/epoll.h>
+#include <assert.h>
 #include <cstdlib>
-#include <sys/socket.h>
+#include <iostream>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <iostream>
-#include <assert.h>
+#include <sys/epoll.h>
+#include <sys/socket.h>
+#include <sys/unistd.h>
 
-#include <utils/utils.h>
-#include <cstring>
 #include "Worker.h"
+#include <cstring>
+#include <utils/utils.h>
 
 namespace hl::http {
 static inline bool check_err(epoll_event &event) {
@@ -23,7 +23,8 @@ static inline bool check_err(epoll_event &event) {
     std::cout << "EPOLLERR" << std::endl;
     int error = 0;
     socklen_t errlen = sizeof(error);
-    if (getsockopt(((Connection *) event.data.ptr)->fd, SOL_SOCKET, SO_ERROR, (void *) &error, &errlen) == 0) {
+    if (getsockopt(((Connection *)event.data.ptr)->fd, SOL_SOCKET, SO_ERROR,
+                   (void *)&error, &errlen) == 0) {
       printf("error = %s\n", strerror(error));
     }
     err = true;
@@ -62,9 +63,11 @@ void Worker::Start() {
     }
 
     for (int i = 0; i < nfds; ++i) {
-      auto conn = (Connection *) m_events[i].data.ptr;
+      auto conn = (Connection *)m_events[i].data.ptr;
       if (check_err(m_events[i])) {
-        std::cout << "ERROR IN " << (conn == m_serverConnection ? "SERVER " : "WORKER ") << " DESC" << std::endl;
+        std::cout << "ERROR IN "
+                  << (conn == m_serverConnection ? "SERVER " : "WORKER ")
+                  << " DESC" << std::endl;
         ::close(conn->fd);
         m_connectionPool->PutConnection(conn);
         continue;
@@ -76,14 +79,21 @@ void Worker::Start() {
             continue;
           } else {
             perror("accept");
-            continue;;
+            continue;
+            ;
           }
         }
 
-        HL_CLOSE_ON_FAIL(::setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (void *) &buffer_size, sizeof(buffer_size)));
-        HL_CLOSE_ON_FAIL(::setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (void *) &buffer_size, sizeof(buffer_size)));
-        HL_CLOSE_ON_FAIL(::setsockopt(sock, SOL_SOCKET, SO_DONTROUTE, (void *) &yes, sizeof(yes)));
-        HL_CLOSE_ON_FAIL(::setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (void *) &yes, sizeof(yes)));
+        HL_CLOSE_ON_FAIL(::setsockopt(sock, SOL_SOCKET, SO_SNDBUF,
+                                      (void *)&buffer_size,
+                                      sizeof(buffer_size)));
+        HL_CLOSE_ON_FAIL(::setsockopt(sock, SOL_SOCKET, SO_RCVBUF,
+                                      (void *)&buffer_size,
+                                      sizeof(buffer_size)));
+        HL_CLOSE_ON_FAIL(::setsockopt(sock, SOL_SOCKET, SO_DONTROUTE,
+                                      (void *)&yes, sizeof(yes)));
+        HL_CLOSE_ON_FAIL(::setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+                                      (void *)&yes, sizeof(yes)));
 
         ::epoll_event ev{};
         ev.events = EPOLLIN | EPOLLET;
@@ -154,12 +164,11 @@ static inline bool validate_json(Request &req) {
 
 char *notFound() {
   TRACE_CALL(__PRETTY_FUNCTION__)
-  static char reply[] =
-      "HTTP/1.1 200 OK\r\n"
-      "Content-Type: application/json\r\n"
-      "Connection: keep-alive\r\n"
-      "Content-Length: 2\r\n\r\n"
-      "{}";
+  static char reply[] = "HTTP/1.1 200 OK\r\n"
+                        "Content-Type: application/json\r\n"
+                        "Connection: keep-alive\r\n"
+                        "Content-Length: 2\r\n\r\n"
+                        "{}";
   return reply;
 }
 
@@ -173,11 +182,11 @@ void Worker::processRequest(Connection *connection) {
   auto response = notFound();
   size_t len = strlen(response);
   int written = 0;
-  while(written < len ) {
-    ssize_t l = write(connection->fd, response+written, len - written);
-    if(l == -1) break;
+  while (written < len) {
+    ssize_t l = write(connection->fd, response + written, len - written);
+    if (l == -1)
+      break;
     written += l;
   }
 }
-}
-
+} // namespace hl::http

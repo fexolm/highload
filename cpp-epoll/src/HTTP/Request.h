@@ -6,11 +6,7 @@
 #define HIGHLOAD_REQUEST_H
 
 namespace hl::http {
-enum class RequestMethod : char {
-  GET,
-  POST,
-  NOT_PARSED
-};
+enum class RequestMethod : char { GET, POST, NOT_PARSED };
 struct Request {
   RequestMethod method{RequestMethod::NOT_PARSED};
   char *body{};
@@ -18,8 +14,9 @@ struct Request {
   char *params{};
   int contentlength{};
   bool Parse(char *request_string, int len);
+
 private:
   void parse(char *request_string, int len);
 };
-}
-#endif //HIGHLOAD_REQUEST_H
+} // namespace hl::http
+#endif // HIGHLOAD_REQUEST_H

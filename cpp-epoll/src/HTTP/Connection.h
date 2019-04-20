@@ -8,8 +8,8 @@
 #include <stack>
 #include <unordered_map>
 
-#include "constants.h"
 #include "Request.h"
+#include "constants.h"
 namespace hl::http {
 class Connection {
 public:
@@ -26,10 +26,11 @@ private:
   using fd_t = int;
   std::stack<Connection *> m_freeConnections;
   std::unordered_map<fd_t, Connection *> m_mappedConnections;
+
 public:
   explicit ConnectionPool(int connectionsCount);
   void PutConnection(Connection *connection);
   Connection *GetConnection(fd_t fd);
 };
-}
-#endif //HIGHLOAD_CONNECTION_H
+} // namespace hl::http
+#endif // HIGHLOAD_CONNECTION_H

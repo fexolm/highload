@@ -2,9 +2,9 @@
 // Created by Artem on 01.01.2019.
 //
 
+#include "Connection.h"
 #include <iostream>
 #include <utils/utils.h>
-#include "Connection.h"
 namespace hl::http {
 ConnectionPool::ConnectionPool(int connectionsCount) {
   TRACE_CALL(__PRETTY_FUNCTION__)
@@ -38,4 +38,4 @@ bool Connection::Ready() {
   TRACE_CALL(__PRETTY_FUNCTION__)
   return request.Parse(buf, bufLen);
 }
-}
+} // namespace hl::http

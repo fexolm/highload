@@ -11,12 +11,13 @@
 #define STRINGIZE2(x) #x
 #define LINE_STRING STRINGIZE(__LINE__)
 
-#define HL_CLOSE_ON_FAIL(f) \
-  do { \
-    if((f) == -1) { \
-      ::perror("Error: "); \
-      throw; \
-    }} while(0)
+#define HL_CLOSE_ON_FAIL(f)                                                    \
+  do {                                                                         \
+    if ((f) == -1) {                                                           \
+      ::perror("Error: ");                                                     \
+      throw;                                                                   \
+    }                                                                          \
+  } while (0)
 
 class ScopeLogger {
 public:
@@ -34,4 +35,4 @@ public:
 namespace hl::utils {
 int percent_decode(char *out, char *in);
 }
-#endif //HIGHLOAD_UTILS_H
+#endif // HIGHLOAD_UTILS_H

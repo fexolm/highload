@@ -1,8 +1,8 @@
-#include <iostream>
+#include "HTTP/Server.h"
 #include <boost/filesystem.hpp>
 #include <csignal>
 #include <fstream>
-#include "HTTP/Server.h"
+#include <iostream>
 
 int main() {
   signal(SIGPIPE, SIG_IGN);

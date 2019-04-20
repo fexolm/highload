@@ -2,17 +2,18 @@
 // Created by Artem on 01.01.2019.
 //
 
-#include <cstring>
+#include "Request.h"
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <utils/utils.h>
-#include "Request.h"
 
 namespace hl::http {
 inline static void parse_url(Request *req, char *url, int len) {
   TRACE_CALL(__PRETTY_FUNCTION__)
   char *params = url;
-  for (; *params && *params != '?'; ++params);
+  for (; *params && *params != '?'; ++params)
+    ;
   if (*params) {
     ++params;
   } else {
@@ -65,7 +66,8 @@ void Request::parse(char *request_string, int len) {
     return;
   }
   int urlLen = 0;
-  for (; request_string[urlStart + urlLen] != ' ' && urlLen < len; urlLen++);
+  for (; request_string[urlStart + urlLen] != ' ' && urlLen < len; urlLen++)
+    ;
   if (urlLen == len) {
     method = RequestMethod::NOT_PARSED;
     return;
@@ -79,7 +81,8 @@ void Request::parse(char *request_string, int len) {
     return;
   }
   size_t body_start = 0;
-  for (; request_string[body_start] != '{'; body_start++);
+  for (; request_string[body_start] != '{'; body_start++)
+    ;
   body = request_string + body_start;
 }
-}
+} // namespace hl::http

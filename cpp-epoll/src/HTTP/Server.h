@@ -5,19 +5,20 @@
 #ifndef HIGHLOAD_SERVER_H
 #define HIGHLOAD_SERVER_H
 
-#include <vector>
-#include <thread>
 #include "Connection.h"
+#include <thread>
+#include <vector>
 
 namespace hl::http {
 class Server {
 private:
   std::vector<std::thread> m_threads;
   int m_listener;
+
 public:
   explicit Server();
   void SpawnThreads(int threads);
 };
-}
+} // namespace hl::http
 
-#endif //HIGHLOAD_SERVER_H
+#endif // HIGHLOAD_SERVER_H

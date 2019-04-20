@@ -17,10 +17,11 @@ private:
 
   void processConnection(Connection *connection);
   void processRequest(Connection *connection);
+
 public:
   explicit Worker(int listener);
   void Start();
 };
-}
+} // namespace hl::http
 
-#endif //HIGHLOAD_WORKER_H
+#endif // HIGHLOAD_WORKER_H
